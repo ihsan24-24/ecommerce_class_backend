@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 class Brand(models.Model):
     name = models.CharField(max_length=25)
@@ -32,5 +33,6 @@ class Rate(models.Model):
         return f"{self.average_rate}"
 class Card(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-
+    quantity = models.IntegerField(default=1)
+    user = models.ForeignKey(User, related_name="cards", on_delete=models.CASCADE, blank=True)
 

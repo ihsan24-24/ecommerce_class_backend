@@ -1,5 +1,5 @@
 from rest_framework.response import Response
-from rest_framework import viewsets, generics
+from rest_framework import viewsets, generics, status
 from decimal import Decimal
 from .models import Product, Card, Brand, Rate
 from .serializers import ProductSerializer, CardSerializer, BrandSerializer, RateSerializer
@@ -25,13 +25,55 @@ class BrandViewSet(viewsets.ModelViewSet):
     queryset = Brand.objects.all()
     serializer_class = BrandSerializer
 
-class CardViewSet(viewsets.ModelViewSet):
+class CardCreateView(generics.CreateAPIView):
     queryset = Card.objects.all()
     serializer_class = CardSerializer
 
-# class RateViewSet(viewsets.ModelViewSet):
-#     queryset = Rate.objects.all()
-#     serializer_class = RateSerializer
+    def create(self, request, *args, **kwargs):
+        product_id = request.data.get('product')
+        user_id = request.user.id
+
+        # Kullanıcının card verilerini kontrol et
+        existing_card = Card.objects.filter(user=user_id, product=product_id).first()
+
+        if existing_card:
+            
+            # Eğer aynı ürün varsa quantity'yi bir artır
+            existing_card.quantity += 1
+            existing_card.save()
+            serializer = self.get_serializer(existing_card)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            # Aynı ürün yoksa yeni card oluştur
+            request.data['product'] = product_id
+            request.data['user'] = user_id
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+class CardDeleteView(generics.UpdateAPIView):
+    queryset = Card.objects.all()
+    serializer_class = CardSerializer
+
+    def update(self, request, *args, **kwargs):
+        user_id = request.user.id
+        product_id = request.data.get('product')
+
+        # Kullanıcının card verilerini kontrol et
+        card = Card.objects.filter(user=user_id, product=product_id).first()
+        print(card)
+        if card:
+            # Quantity 1'den büyükse bir azalt, eğer 1 ise sil
+            if card.quantity > 1:
+                
+                card.quantity -= 1
+                card.save()
+            else:
+                card.delete()
+        
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 class RateUpdateView(generics.UpdateAPIView):
     queryset = Rate.objects.all()
@@ -92,7 +134,6 @@ class RateUpdateView(generics.UpdateAPIView):
 
         return Response(serializer.data)
 
-class DeleteRating(generics.DestroyAPIView):
-    queryset = Rate.objects.all()
-    serializer_class = RateSerializer
-    allowed_methods = ['DELETE']
+# class DeleteRating(generics.DestroyAPIView):
+#     queryset = Rate.objects.all()
+#     serializer_class = RateSerializer

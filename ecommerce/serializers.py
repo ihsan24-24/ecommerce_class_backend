@@ -34,11 +34,14 @@ class ProductSerializer(serializers.ModelSerializer):
         )
 
 class CardSerializer(serializers.ModelSerializer):
+    
     class Meta:
         model = Card
         fields = (
             "id",
-            "product"
+            "user",
+            "product",
+            "quantity"       
         )
 
 class BrandSerializer(serializers.ModelSerializer):
