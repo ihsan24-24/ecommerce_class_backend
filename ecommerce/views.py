@@ -57,11 +57,16 @@ class CreateCardProductViewSet(viewsets.ViewSet):
 
 class DeleteCardProductViewSet(viewsets.ViewSet):
     def delete_card_product(self, request):
-        card_id = request.data.get('card_id')
         product_id = request.data.get('product_id')
+        user = request.user
+        # User'ın card bilgisini alıyoruz. Eğer kullanıcının bir card'ı yoksa, invalid card hatası dönüyoruz
+        try:
+            card = Card.objects.get(user=user)
+        except Card.DoesNotExist:
+            return Response({'message': 'Invalid card product'}, status=400)
 
         try:
-            card_product = CardProduct.objects.get(card_id=card_id, product_id=product_id)
+            card_product = CardProduct.objects.get(card_id=card.id, product_id=product_id)
 
             # eğer card'dan çıkarılmak istenen ürünün quantity 1 den büyük ise quantity 1 eksilt eğer 1 ise sil
             if card_product.quantity > 1:
@@ -81,6 +86,7 @@ class RateUpdateView(generics.UpdateAPIView):
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
+
         # gelen yıldız değerine göre rating'i artırıyoruz
         one_star = request.data.get('one_star')
         two_star = request.data.get('two_star')
@@ -124,10 +130,8 @@ class RateUpdateView(generics.UpdateAPIView):
             instance.average_rate = instance.average_rate.quantize(Decimal('0.0'))  # Yuvarlama işlemi
             instance.save()
 
-        print("alt taraf : ", instance.one_star)
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)    
-        # self.perform_update(serializer)
 
         if getattr(instance, '_prefetched_objects_cache', None):
             instance._prefetched_objects_cache = {}
