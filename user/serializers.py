@@ -1,16 +1,16 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from ecommerce.serializers import CardSerializer
+from ecommerce.serializers import CardSerializer, CardProductSerializer
 from rest_framework.validators import UniqueValidator
 from django.contrib.auth.password_validation import validate_password
 from dj_rest_auth.serializers import TokenSerializer
 
 
 class UserSerializerWithCard(serializers.ModelSerializer):
-    cards = CardSerializer(many=True, read_only=True)
+    # cards = CardProductSerializer(many=True, read_only=True)
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'cards'] 
+        fields = ['id', 'username', 'email'] 
     
 
 class NewUserSerializer(serializers.ModelSerializer):

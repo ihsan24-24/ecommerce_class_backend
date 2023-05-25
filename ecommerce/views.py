@@ -1,8 +1,9 @@
 from rest_framework.response import Response
 from rest_framework import viewsets, generics, status
+from rest_framework.decorators import api_view
 from decimal import Decimal
-from .models import Product, Card, Brand, Rate
-from .serializers import ProductSerializer, CardSerializer, BrandSerializer, RateSerializer
+from .models import Product, Card, Brand, Rate, CardProduct
+from .serializers import ProductSerializer, CardSerializer, BrandSerializer, RateSerializer, CardProductSerializer
 
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
@@ -25,55 +26,54 @@ class BrandViewSet(viewsets.ModelViewSet):
     queryset = Brand.objects.all()
     serializer_class = BrandSerializer
 
-class CardCreateView(generics.CreateAPIView):
-    queryset = Card.objects.all()
-    serializer_class = CardSerializer
+class CreateCardProductViewSet(viewsets.ViewSet):
+    def create(self, request):
+        product_id = request.data.get('product_id')
+        user = request.user
 
-    def create(self, request, *args, **kwargs):
-        product_id = request.data.get('product')
-        user_id = request.user.id
+        # Eğer kullanıcının bir card'ı yoksa, card verisini oluştur
+        try:
+            card = Card.objects.get(user=user)
+        except Card.DoesNotExist:
+            card = Card.objects.create(user=user)
 
-        # Kullanıcının card verilerini kontrol et
-        existing_card = Card.objects.filter(user=user_id, product=product_id).first()
+        # CardProduct'u kontrol et eğer product daha önce card'a eklenmiş ise quantity artır eklenmemişse create et
+        try:
+            card_product = CardProduct.objects.filter(card=card, product_id=product_id).first()
 
-        if existing_card:
-            
-            # Eğer aynı ürün varsa quantity'yi bir artır
-            existing_card.quantity += 1
-            existing_card.save()
-            serializer = self.get_serializer(existing_card)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        else:
-            # Aynı ürün yoksa yeni card oluştur
-            request.data['product'] = product_id
-            request.data['user'] = user_id
-            serializer = self.get_serializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-            self.perform_create(serializer)
-            headers = self.get_success_headers(serializer.data)
-            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
-class CardDeleteView(generics.UpdateAPIView):
-    queryset = Card.objects.all()
-    serializer_class = CardSerializer
-
-    def update(self, request, *args, **kwargs):
-        user_id = request.user.id
-        product_id = request.data.get('product')
-
-        # Kullanıcının card verilerini kontrol et
-        card = Card.objects.filter(user=user_id, product=product_id).first()
-        print(card)
-        if card:
-            # Quantity 1'den büyükse bir azalt, eğer 1 ise sil
-            if card.quantity > 1:
-                
-                card.quantity -= 1
-                card.save()
+            if len(card_product) > 0:
+                card_product.quantity += 1
+                card_product.save()
             else:
-                card.delete()
-        
-        return Response(status=status.HTTP_204_NO_CONTENT)
+                product = Product.objects.get(id=product_id)
+                card_product = CardProduct.objects.create(card=card, product=product)
+
+            serializer = CardProductSerializer(card_product)
+            return Response(serializer.data)
+
+        except Product.DoesNotExist:
+            return Response({'message': 'Invalid product'}, status=400)
+
+
+class DeleteCardProductViewSet(viewsets.ViewSet):
+    def delete_card_product(self, request):
+        card_id = request.data.get('card_id')
+        product_id = request.data.get('product_id')
+
+        try:
+            card_product = CardProduct.objects.get(card_id=card_id, product_id=product_id)
+
+            # eğer card'dan çıkarılmak istenen ürünün quantity 1 den büyük ise quantity 1 eksilt eğer 1 ise sil
+            if card_product.quantity > 1:
+                card_product.quantity -= 1
+                card_product.save()
+            else:
+                card_product.delete()
+
+            return Response({'message': 'Card product deleted successfully'})
+
+        except CardProduct.DoesNotExist:
+            return Response({'message': 'Invalid card product'}, status=400)
 
 class RateUpdateView(generics.UpdateAPIView):
     queryset = Rate.objects.all()

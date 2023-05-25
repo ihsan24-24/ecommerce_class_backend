@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Product, Card, Brand, Rate
+from .models import Product, Card, Brand, Rate, CardProduct
 
 class RateSerializer(serializers.ModelSerializer):
     one_star = serializers.IntegerField(read_only=False)
@@ -39,9 +39,17 @@ class CardSerializer(serializers.ModelSerializer):
         model = Card
         fields = (
             "id",
-            "user",
+            "user",     
+        )
+
+class CardProductSerializer(serializers.ModelSerializer):
+    product = ProductSerializer()
+    class Meta:
+        model = CardProduct
+        fields = (
             "product",
-            "quantity"       
+            "quantity",
+            "card"
         )
 
 class BrandSerializer(serializers.ModelSerializer):

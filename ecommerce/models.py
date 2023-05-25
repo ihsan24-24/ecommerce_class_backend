@@ -32,7 +32,19 @@ class Rate(models.Model):
     def __str__(self):
         return f"{self.average_rate}"
 class Card(models.Model):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    quantity = models.IntegerField(default=1)
-    user = models.ForeignKey(User, related_name="cards", on_delete=models.CASCADE, blank=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="cards", blank=True)
 
+class CardProduct(models.Model):
+    card = models.ForeignKey(Card, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="products")
+    quantity = models.PositiveIntegerField(default=1)
+
+status = (
+    (1, "Preparing"),
+    (2, "on way"),
+    (3, "has been delivered")
+)
+class Order(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="orders", blank=True)
+    card = models.OneToOneField(Card, on_delete=models.CASCADE, related_name="orders", blank=True)
+    status = models.PositiveSmallIntegerField(choices=status, default=1)
